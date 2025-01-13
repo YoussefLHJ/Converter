@@ -1,0 +1,110 @@
+PARSER_BEGIN(XMLParser)
+
+import java.util.*;
+
+public class XMLParser {
+    private Map<String, Object> currentElement;
+
+    public XMLParser() {
+        currentElement = null;
+    }
+
+    public Map<String, Object> getResult() {
+        return currentElement;
+    }
+
+    public void parse() throws ParseException {
+        currentElement = Document();
+    }
+
+    public static void main(String[] args) throws ParseException {
+        XMLParser parser = new XMLParser(System.in);
+        parser.parse();
+        System.out.println("The XML is valid.");
+    }
+}
+
+PARSER_END(XMLParser)
+
+SKIP : {
+    " " | "\t" | "\n" | "\r"
+}
+
+TOKEN : {
+    <OPEN_TAG: "<"> |
+    <CLOSE_TAG: ">"> |
+    <SLASH: "/"> |
+    <EQUALS: "="> |
+    <QUOTE: "\""> |
+    <NAME: ( ["a"-"z", "A"-"Z"] ( ["a"-"z", "A"-"Z", "0"-"9", "-", "_", "."] )* ) > |
+    <TEXT: (~["<", ">"])+>
+}
+
+// Document is the root structure
+private Map<String, Object> Document() : {
+    Map<String, Object> root;
+}
+{
+    root = Element()
+    <EOF>
+    { return root; }
+}
+
+// Parse a single XML element
+private Map<String, Object> Element() : {
+    Map<String, Object> element = new HashMap<>();
+    String openingTagName, closingTagName;
+    Map<String, String> attributes = new HashMap<>();
+    List<Object> children = new ArrayList<>();
+    Token tagToken;
+}
+{
+    <OPEN_TAG>
+    tagToken = <NAME> 
+    {
+        openingTagName = tagToken.image;
+    }
+    attributes = AttributeList()
+    (
+        <SLASH> <CLOSE_TAG> { element.put(openingTagName, attributes); return element; } // Self-closing tag
+      | <CLOSE_TAG>
+        children = ContentList()
+        <OPEN_TAG> <SLASH> tagToken = <NAME> 
+        {
+            closingTagName = tagToken.image;
+        }
+        <CLOSE_TAG>
+        {
+            if (!openingTagName.equals(closingTagName)) {
+                throw new ParseException("Mismatched tags: " + openingTagName + " and " + closingTagName);
+            }
+            element.put(openingTagName, Map.of("attributes", attributes, "children", children));
+            return element;
+        }
+    )
+}
+
+
+// Parse attributes of an XML element
+private Map<String, String> AttributeList() : {
+    Map<String, String> attributes = new HashMap<>();
+    String key, value;
+}
+{
+    ( key = <NAME> <EQUALS> <QUOTE> value = <TEXT> <QUOTE> { attributes.put(key, value); } )*
+    { return attributes; }
+}
+
+// Parse the content within an element
+// Parse the content within an element
+private List<Object> ContentList() : {
+    List<Object> contents = new ArrayList<>();
+    Object content;
+}
+{
+    (
+        content = Element() { contents.add(content); }
+      | content = <TEXT> { contents.add(content); }
+    )*
+    { return contents; }
+}
