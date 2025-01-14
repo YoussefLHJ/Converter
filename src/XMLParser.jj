@@ -1,110 +1,154 @@
+options {
+  STATIC = false;
+  LOOKAHEAD = 2;
+  CHOICE_AMBIGUITY_CHECK = 2;
+  OTHER_AMBIGUITY_CHECK = 1;
+  DEBUG_PARSER = false;
+  DEBUG_LOOKAHEAD = false;
+  DEBUG_TOKEN_MANAGER = false;
+  ERROR_REPORTING = true;
+  JAVA_UNICODE_ESCAPE = false;
+  UNICODE_INPUT = false;
+  IGNORE_CASE = false;
+  USER_TOKEN_MANAGER = false;
+  USER_CHAR_STREAM = false;
+  BUILD_PARSER = true;
+  BUILD_TOKEN_MANAGER = true;
+  FORCE_LA_CHECK = false;
+}
+
 PARSER_BEGIN(XMLParser)
 
+import java.io.*;
 import java.util.*;
 
 public class XMLParser {
-    private Map<String, Object> currentElement;
-
-    public XMLParser() {
-        currentElement = null;
+    private StringBuilder jsonOutput = new StringBuilder();
+    private int indentLevel = 0;
+    private Stack<String> tagStack = new Stack<>();
+    private boolean isFirstElement = true;
+    
+    public String getJsonOutput() {
+        return jsonOutput.toString();
     }
 
-    public Map<String, Object> getResult() {
-        return currentElement;
+    private void addIndent() {
+        for (int i = 0; i < indentLevel; i++) {
+            jsonOutput.append("  ");
+        }
     }
 
-    public void parse() throws ParseException {
-        currentElement = Document();
+    private void startObject(String name) {
+        if (!isFirstElement) {
+            jsonOutput.append(",\n");
+        }
+        addIndent();
+        jsonOutput.append("\"").append(name).append("\": {");
+        indentLevel++;
+        isFirstElement = true;
     }
 
-    public static void main(String[] args) throws ParseException {
-        XMLParser parser = new XMLParser(System.in);
-        parser.parse();
-        System.out.println("The XML is valid.");
+    private void endObject() {
+        indentLevel--;
+        jsonOutput.append("\n");
+        addIndent();
+        jsonOutput.append("}");
+        isFirstElement = false;
+    }
+
+    public static XMLParser createParser(String xmlContent) {
+        return new XMLParser(new StringReader(xmlContent));
+    }
+
+    public static XMLParser createParser(File xmlFile) throws FileNotFoundException {
+        return new XMLParser(new FileReader(xmlFile));
     }
 }
 
 PARSER_END(XMLParser)
 
 SKIP : {
-    " " | "\t" | "\n" | "\r"
+    " "
+    | "\t"
+    | "\n"
+    | "\r"
 }
 
 TOKEN : {
-    <OPEN_TAG: "<"> |
-    <CLOSE_TAG: ">"> |
-    <SLASH: "/"> |
-    <EQUALS: "="> |
-    <QUOTE: "\""> |
-    <NAME: ( ["a"-"z", "A"-"Z"] ( ["a"-"z", "A"-"Z", "0"-"9", "-", "_", "."] )* ) > |
-    <TEXT: (~["<", ">"])+>
+    < OPEN_TAG: "<" > |
+    < CLOSE_TAG: ">" > |
+    < END_TAG: "</" > |
+    < SELF_CLOSE: "/>" > |
+    < NAME: (["a"-"z", "A"-"Z", "_"])(["a"-"z", "A"-"Z", "0"-"9", "_", "-"])* > |
+    < CONTENT: (~["<", ">"])+ >
 }
 
-// Document is the root structure
-private Map<String, Object> Document() : {
-    Map<String, Object> root;
+void document() : {
+    jsonOutput.setLength(0);
+    indentLevel = 0;
+    isFirstElement = true;
+    jsonOutput.append("{\n");
 }
 {
-    root = Element()
+    element()
     <EOF>
-    { return root; }
+    {
+        jsonOutput.append("\n}");
+    }
 }
 
-// Parse a single XML element
-private Map<String, Object> Element() : {
-    Map<String, Object> element = new HashMap<>();
-    String openingTagName, closingTagName;
-    Map<String, String> attributes = new HashMap<>();
-    List<Object> children = new ArrayList<>();
-    Token tagToken;
+void element() : {
+    Token t;
+    String elementName;
 }
 {
     <OPEN_TAG>
-    tagToken = <NAME> 
-    {
-        openingTagName = tagToken.image;
+    t = <NAME> {
+        elementName = t.image;
+        tagStack.push(elementName);
+        startObject(elementName);
     }
-    attributes = AttributeList()
+    <CLOSE_TAG>
     (
-        <SLASH> <CLOSE_TAG> { element.put(openingTagName, attributes); return element; } // Self-closing tag
-      | <CLOSE_TAG>
-        children = ContentList()
-        <OPEN_TAG> <SLASH> tagToken = <NAME> 
-        {
-            closingTagName = tagToken.image;
+        content()
+        <END_TAG>
+        t = <NAME> {
+            if (!elementName.equals(t.image)) {
+                throw new ParseException("Mismatched tags: opening tag was " + 
+                    elementName + " but closing tag is " + t.image);
+            }
+            tagStack.pop();
         }
         <CLOSE_TAG>
-        {
-            if (!openingTagName.equals(closingTagName)) {
-                throw new ParseException("Mismatched tags: " + openingTagName + " and " + closingTagName);
-            }
-            element.put(openingTagName, Map.of("attributes", attributes, "children", children));
-            return element;
+    |
+        <SELF_CLOSE> {
+            tagStack.pop();
         }
     )
+    {
+        endObject();
+    }
 }
 
-
-// Parse attributes of an XML element
-private Map<String, String> AttributeList() : {
-    Map<String, String> attributes = new HashMap<>();
-    String key, value;
-}
-{
-    ( key = <NAME> <EQUALS> <QUOTE> value = <TEXT> <QUOTE> { attributes.put(key, value); } )*
-    { return attributes; }
-}
-
-// Parse the content within an element
-// Parse the content within an element
-private List<Object> ContentList() : {
-    List<Object> contents = new ArrayList<>();
-    Object content;
+void content() : {
+    Token t;
+    boolean hasContent = false;
 }
 {
     (
-        content = Element() { contents.add(content); }
-      | content = <TEXT> { contents.add(content); }
+        t = <CONTENT> {
+            if (!hasContent) {
+                if (!isFirstElement) {
+                    jsonOutput.append(",");
+                }
+                jsonOutput.append("\n");
+                addIndent();
+                jsonOutput.append("\"content\": \"").append(t.image.trim()).append("\"");
+                isFirstElement = false;
+                hasContent = true;
+            }
+        }
+    |
+        element()
     )*
-    { return contents; }
 }

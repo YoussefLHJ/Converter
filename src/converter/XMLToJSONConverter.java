@@ -2,139 +2,120 @@ package converter;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.ByteArrayInputStream;
-import java.util.*;
-import java.util.List;
+import java.awt.event.*;
+import java.io.*;
 
 public class XMLToJSONConverter extends JFrame {
-	
     private JTextArea xmlTextArea;
     private JTextArea jsonTextArea;
-    private JButton validateButton;
     private JButton convertButton;
+    private JButton loadButton;
+    private JButton saveButton;
 
     public XMLToJSONConverter() {
-        setTitle("XML to JSON Converter");
-        setSize(800, 600);
+        super("XML to JSON Converter");
+        initializeUI();
+    }
+
+    private void initializeUI() {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
+        setSize(800, 600);
 
-        // Initialize text areas with borders and titles
-        xmlTextArea = new JTextArea();
-        jsonTextArea = new JTextArea();
-        xmlTextArea.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("XML Input"),
-            BorderFactory.createEmptyBorder(5, 5, 5, 5)));
-        jsonTextArea.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("JSON Output"),
-            BorderFactory.createEmptyBorder(5, 5, 5, 5)));
-
-        // Create buttons
-        validateButton = new JButton("Validate XML");
-        convertButton = new JButton("Convert to JSON");
+        // Create split pane for input/output
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         
-        // Button panel with some spacing
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        buttonPanel.add(validateButton);
-        buttonPanel.add(Box.createHorizontalStrut(10));
-        buttonPanel.add(convertButton);
+        // Input panel
+        JPanel inputPanel = new JPanel(new BorderLayout());
+        xmlTextArea = new JTextArea();
+        inputPanel.add(new JLabel("XML Input:"), BorderLayout.NORTH);
+        inputPanel.add(new JScrollPane(xmlTextArea), BorderLayout.CENTER);
+        
+        // Output panel
+        JPanel outputPanel = new JPanel(new BorderLayout());
+        jsonTextArea = new JTextArea();
+        jsonTextArea.setEditable(false);
+        outputPanel.add(new JLabel("JSON Output:"), BorderLayout.NORTH);
+        outputPanel.add(new JScrollPane(jsonTextArea), BorderLayout.CENTER);
 
-        // Split pane for the text areas
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-                new JScrollPane(xmlTextArea), new JScrollPane(jsonTextArea));
+        // Add panels to split pane
+        splitPane.setLeftComponent(inputPanel);
+        splitPane.setRightComponent(outputPanel);
         splitPane.setDividerLocation(400);
+
+        // Button panel
+        JPanel buttonPanel = new JPanel();
+        loadButton = new JButton("Load XML");
+        convertButton = new JButton("Convert");
+        saveButton = new JButton("Save JSON");
+        
+        buttonPanel.add(loadButton);
+        buttonPanel.add(convertButton);
+        buttonPanel.add(saveButton);
 
         // Add components to frame
         add(splitPane, BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
 
         // Add button listeners
-        validateButton.addActionListener(e -> validateXML());
-        convertButton.addActionListener(e -> convertToJSON());
+        loadButton.addActionListener(e -> loadXML());
+        convertButton.addActionListener(e -> convertXMLtoJSON());
+        saveButton.addActionListener(e -> saveJSON());
     }
 
-    private void validateXML() {
-        String xmlContent = xmlTextArea.getText();
-        try {
-            XMLParser parser = new XMLParser(new ByteArrayInputStream(xmlContent.getBytes()));
-            parser.parse();
-            JOptionPane.showMessageDialog(this, "XML is valid!", "Validation", 
-                                        JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Invalid XML: " + ex.getMessage(), 
-                                        "Validation Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void convertToJSON() {
-        String xmlContent = xmlTextArea.getText();
-        try {
-            XMLParser parser = new XMLParser(new ByteArrayInputStream(xmlContent.getBytes()));
-            parser.parse();
-            Map<String, Object> jsonObject = parser.getResult();
-            String jsonString = toJsonString(jsonObject, 0);
-            jsonTextArea.setText(jsonString);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error converting to JSON: " + ex.getMessage(),
-                                        "Conversion Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private String toJsonString(Object obj, int indent) {
-        if (obj == null) {
-            return "null";
-        }
-
-        StringBuilder json = new StringBuilder();
-        String indentStr = "  ".repeat(indent);
-
-        if (obj instanceof Map) {
-            Map<String, Object> map = (Map<String, Object>) obj;
-            json.append("{\n");
-            boolean first = true;
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                if (!first) {
-                    json.append(",\n");
+    private void loadXML() {
+        JFileChooser fileChooser = new JFileChooser();
+        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            try {
+                File file = fileChooser.getSelectedFile();
+                BufferedReader reader = new BufferedReader(new FileReader(file));
+                StringBuilder content = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    content.append(line).append("\n");
                 }
-                first = false;
-                json.append(indentStr).append("  \"").append(entry.getKey()).append("\": ")
-                    .append(toJsonString(entry.getValue(), indent + 1));
+                reader.close();
+                xmlTextArea.setText(content.toString());
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Error loading file: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
             }
-            json.append("\n").append(indentStr).append("}");
-        } else if (obj instanceof List) {
-            List<Object> list = (List<Object>) obj;
-            json.append("[\n");
-            boolean first = true;
-            for (Object item : list) {
-                if (!first) {
-                    json.append(",\n");
-                }
-                first = false;
-                json.append(indentStr).append("  ").append(toJsonString(item, indent + 1));
-            }
-            json.append("\n").append(indentStr).append("]");
-        } else if (obj instanceof String) {
-            json.append("\"").append(escapeJsonString((String) obj)).append("\"");
-        } else {
-            json.append(obj.toString());
         }
-
-        return json.toString();
     }
 
-    private String escapeJsonString(String str) {
-        return str.replace("\\", "\\\\")
-                 .replace("\"", "\\\"")
-                 .replace("\n", "\\n")
-                 .replace("\r", "\\r")
-                 .replace("\t", "\\t");
+    private void convertXMLtoJSON() {
+        try {
+            String xmlContent = xmlTextArea.getText();
+            XMLParser parser = XMLParser.createParser(xmlContent);
+            parser.document();
+            jsonTextArea.setText(parser.getJsonOutput());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error converting XML: " + ex.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void saveJSON() {
+        JFileChooser fileChooser = new JFileChooser();
+        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            try {
+                File file = fileChooser.getSelectedFile();
+                if (!file.getName().toLowerCase().endsWith(".json")) {
+                    file = new File(file.getPath() + ".json");
+                }
+                BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+                writer.write(jsonTextArea.getText());
+                writer.close();
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            XMLToJSONConverter converter = new XMLToJSONConverter();
-            converter.setVisible(true);
+            new XMLToJSONConverter().setVisible(true);
         });
     }
 }
