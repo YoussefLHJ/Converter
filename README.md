@@ -2,28 +2,16 @@
 
 A Java-based XML to JSON converter using JavaCC parser generator with a Swing GUI interface.
 
-## Commit Message
-```
-feat(parser): Implement XML to JSON converter with JavaCC
-
-- Add XML grammar definition and parser generation
-- Create Swing-based UI for file handling and conversion
-- Implement custom JSON conversion logic
-- Add validation for XML structure
-- Include error handling and user feedback
-
-Tech stack: JavaCC, Java Swing, Custom JSON converter
-```
-
 ## Project Structure
 ```
 converter/
 ├── src/
-│   ├── converter/
-│   │   └── XMLToJSONConverter.java
-│   │ 
-│   └── XMLParser.jj
-│
+│   └── converter/
+│      │
+│      └── XMLToJSONConverter.java
+│      │
+│      └── XMLParser.jj
+│     
 └── README.md
 ```
 
@@ -106,40 +94,6 @@ TOKEN : {
    - Error reporting
    - Format preservation
 
-## Usage
-
-### Prerequisites
-- Java JDK 8 or higher
-- JavaCC 7.0 or higher
-
-### Building the Project
-1. Generate parser:
-```bash
-javacc src/main/javacc/XMLParser.jj
-```
-
-2. Compile Java files:
-```bash
-javac src/main/java/*.java
-```
-
-3. Run the application:
-```bash
-java XMLToJSONConverter
-```
-
-### Example Usage
-```java
-// Programmatic usage
-XMLParser parser = XMLParser.createParser(xmlContent);
-parser.document();
-String jsonOutput = parser.getJsonOutput();
-
-// GUI usage
-XMLToJSONConverter converter = new XMLToJSONConverter();
-converter.setVisible(true);
-```
-
 ## Sample Input/Output
 
 ### Input XML
@@ -182,11 +136,3 @@ converter.setVisible(true);
    - Add validation for special XML characters
    - Support for XML comments
    - Enhanced error reporting with line numbers
-
-## License
-MIT License
-
-## Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
