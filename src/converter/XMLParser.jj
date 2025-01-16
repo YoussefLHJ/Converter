@@ -3,9 +3,9 @@ options {
     LOOKAHEAD = 2;
     CHOICE_AMBIGUITY_CHECK = 2;
     OTHER_AMBIGUITY_CHECK = 1;
-    DEBUG_PARSER = false;
-    DEBUG_LOOKAHEAD = false;
-    DEBUG_TOKEN_MANAGER = false;
+    DEBUG_PARSER = true;
+    DEBUG_LOOKAHEAD = true;
+    DEBUG_TOKEN_MANAGER = true;
     ERROR_REPORTING = true;
     JAVA_UNICODE_ESCAPE = false;
     UNICODE_INPUT = false;
@@ -40,40 +40,37 @@ public class XMLParser {
     }
 
     private void startObject(String name) {
-        if (!isFirstElement) {
-            jsonOutput.append(",\n");
-        }
-        addIndent();
-        jsonOutput.append("\"").append(name).append("\": {");
-        indentLevel++;
-        isFirstElement = true;
+    if (!isFirstElement) {
+        jsonOutput.append(",\n");
     }
+    addIndent();
+    jsonOutput.append("\"").append(name).append("\": ");
+    isFirstElement = true;
+}
 
     private void endObject() {
-        indentLevel--;
-        jsonOutput.append("\n");
-        addIndent();
-        jsonOutput.append("}");
-        isFirstElement = false;
-    }
+    isFirstElement = false;
+}
 
     private void addAttribute(String name, String value) {
-        if (!isFirstElement) {
-            jsonOutput.append(",\n");
-        }
-        addIndent();
-        jsonOutput.append("\"").append(name).append("\": \"").append(value).append("\"");
-        isFirstElement = false;
+    if (!isFirstElement) {
+        jsonOutput.append(",\n");
     }
+    addIndent();
+    // Tous les attributs commencent par @, donc on les ajoute directement
+    jsonOutput.append("\"").append(name).append("\": \"").append(value).append("\"");
+    isFirstElement = false;
+	}
 
     private void addText(String text) {
-        if (!isFirstElement) {
-            jsonOutput.append(",\n");
-        }
-        addIndent();
-        jsonOutput.append("\"").append(text).append("\"");
-        isFirstElement = false;
+    if (!isFirstElement) {
+        jsonOutput.append(",\n");
     }
+    addIndent();
+    // Ajouter directement la valeur textuelle sans la clé "#text"
+    jsonOutput.append("\"").append(text).append("\"");
+    isFirstElement = false;
+}
 
     public static XMLParser createParser(String xmlContent) {
         return new XMLParser(new StringReader(xmlContent));
@@ -84,7 +81,6 @@ public class XMLParser {
     }
 }
 PARSER_END(XMLParser)
-
 SKIP : {
     " "
     | "\t"
@@ -100,8 +96,9 @@ TOKEN : {
     < SELF_CLOSE: "/>" > |
     < EQUALS: "=" > |
     < NAME: (["a"-"z", "A"-"Z", "_", ":"])(["a"-"z", "A"-"Z", "0"-"9", "_", "-", ":", "."])* > |
+    < AT_NAME: "@" (["a"-"z", "A"-"Z", "_", ":"])(["a"-"z", "A"-"Z", "0"-"9", "_", "-", ":", "."])* > |
     < ATTRIBUTE_VALUE: "\"" (~["\""])* "\"" > |
-    < TEXT: (~["<", ">"])+ >
+    < TEXT: (~["<", ">", "@", "=", "\""])+ > // Restreint pour ne pas capturer les attributs ou les noms
 }
 
 void document() : {
@@ -124,22 +121,23 @@ void element() : {
 }
 {
     <OPEN_TAG>
-    t = <NAME> {
+    t = <NAME> { // Nom de l'élément
         elementName = t.image;
         tagStack.push(elementName);
         startObject(elementName);
     }
     
+    // Gestion des attributs (optionnels)
     (attribute())*
     
     (
-        <SELF_CLOSE> {
+        <SELF_CLOSE> { // Élément auto-fermant
             tagStack.pop();
             endObject();
         }
         |
         <CLOSE_TAG>
-        content()
+        content() // Gestion du contenu (texte ou éléments imbriqués)
         <END_TAG>
         t = <NAME> {
             if (!elementName.equals(t.image)) {
@@ -152,13 +150,12 @@ void element() : {
         <CLOSE_TAG>
     )
 }
-
 void attribute() : {
     Token nameToken;
     Token valueToken;
 }
 {
-    nameToken = <NAME>
+    nameToken = <AT_NAME> // Attribut commençant par @
     <EQUALS>
     valueToken = <ATTRIBUTE_VALUE>
     {
@@ -172,9 +169,9 @@ void content() : {
 }
 {
     (
-        element()
+        element() 
         |
-        t = <TEXT> {
+        t = <TEXT> { 
             String text = t.image.trim();
             if (!text.isEmpty()) {
                 addText(text);

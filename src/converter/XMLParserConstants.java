@@ -25,9 +25,11 @@ public interface XMLParserConstants {
   /** RegularExpression Id. */
   int NAME = 11;
   /** RegularExpression Id. */
-  int ATTRIBUTE_VALUE = 12;
+  int AT_NAME = 12;
   /** RegularExpression Id. */
-  int TEXT = 13;
+  int ATTRIBUTE_VALUE = 13;
+  /** RegularExpression Id. */
+  int TEXT = 14;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -46,6 +48,7 @@ public interface XMLParserConstants {
     "\"/>\"",
     "\"=\"",
     "<NAME>",
+    "<AT_NAME>",
     "<ATTRIBUTE_VALUE>",
     "<TEXT>",
   };
