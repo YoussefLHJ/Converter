@@ -10,7 +10,6 @@ public class XMLParser implements XMLParserConstants {
     private int indentLevel = 0;
     private Stack<String> tagStack = new Stack<>();
     private boolean isFirstElement = true;
-    private boolean hasContent = false;
 
     public String getJsonOutput() {
         return jsonOutput.toString();
@@ -27,10 +26,9 @@ public class XMLParser implements XMLParserConstants {
             jsonOutput.append(",\n");
         }
         addIndent();
-        jsonOutput.append("\"").append(escapeJson(name)).append("\": {");
+        jsonOutput.append("\"").append(name).append("\": {");
         indentLevel++;
         isFirstElement = true;
-        hasContent = false;
     }
 
     private void endObject() {
@@ -42,47 +40,21 @@ public class XMLParser implements XMLParserConstants {
     }
 
     private void addAttribute(String name, String value) {
-    if (!isFirstElement) {
-        jsonOutput.append(",\n");
-    }
-    addIndent();
-    jsonOutput.append("\"").append(escapeJson(name)).append("\": ")
-            .append("\"").append(escapeJson(value)).append("\"");
-    isFirstElement = false;
-}
-
-    private void addSimpleElement(String name, String text) {
         if (!isFirstElement) {
             jsonOutput.append(",\n");
         }
         addIndent();
-        jsonOutput.append("\"").append(escapeJson(name)).append("\": \"")
-                .append(escapeJson(text)).append("\"");
+        jsonOutput.append("\"").append(name).append("\": \"").append(value).append("\"");
         isFirstElement = false;
     }
 
     private void addText(String text) {
-        String trimmedText = text.trim();
-        if (trimmedText.isEmpty()) {
-            return;
-        }
         if (!isFirstElement) {
             jsonOutput.append(",\n");
         }
         addIndent();
-        jsonOutput.append("\"#text\": \"").append(escapeJson(trimmedText)).append("\"");
+        jsonOutput.append("\"").append(text).append("\"");
         isFirstElement = false;
-        hasContent = true;
-    }
-
-    private String escapeJson(String input) {
-        return input.replace("\\", "\\\\")
-                   .replace("\"", "\\\"")
-                   .replace("\b", "\\b")
-                   .replace("\f", "\\f")
-                   .replace("\n", "\\n")
-                   .replace("\r", "\\r")
-                   .replace("\t", "\\t");
     }
 
     public static XMLParser createParser(String xmlContent) {
@@ -93,122 +65,82 @@ public class XMLParser implements XMLParserConstants {
         return new XMLParser(new FileReader(xmlFile));
     }
 
-  final public void document() throws ParseException {
-    trace_call("document");
-    try {
-jsonOutput.setLength(0);
+  final public void document() throws ParseException {jsonOutput.setLength(0);
     indentLevel = 0;
     isFirstElement = true;
     jsonOutput.append("{\n");
-      if (jj_2_1(2)) {
-        declaration();
-      } else {
-        ;
-      }
-      element();
-      jj_consume_token(0);
+    element();
+    jj_consume_token(0);
 jsonOutput.append("\n}");
-    } finally {
-      trace_return("document");
-    }
 }
 
-  final public void declaration() throws ParseException {
-    trace_call("declaration");
-    try {
-
-      jj_consume_token(XML_DECLARATION);
-    } finally {
-      trace_return("declaration");
-    }
-}
-
-  final public void content() throws ParseException {
-    trace_call("content");
-    try {
-Token t;
-      label_1:
-      while (true) {
-        if (jj_2_2(2)) {
-          ;
-        } else {
-          break label_1;
-        }
-        if (jj_2_3(2)) {
-          element();
-        } else if (jj_2_4(2)) {
-          t = jj_consume_token(TEXT);
-String text = t.image.trim();
-            if (!text.isEmpty()) {
-                addText(text);
-            }
-        } else {
-          jj_consume_token(-1);
-          throw new ParseException();
-        }
-      }
-    } finally {
-      trace_return("content");
-    }
-}
-
-// Modification de la règle element() pour mieux gérer la structure
-  final public void element() throws ParseException {
-    trace_call("element");
-    try {
-Token t;
+  final public void element() throws ParseException {Token t;
     String elementName;
-      jj_consume_token(OPEN_TAG);
-      t = jj_consume_token(NAME);
+    jj_consume_token(OPEN_TAG);
+    t = jj_consume_token(NAME);
 elementName = t.image;
         tagStack.push(elementName);
         startObject(elementName);
-      label_2:
-      while (true) {
-        if (jj_2_5(2)) {
-          ;
-        } else {
-          break label_2;
-        }
-        attribute();
+    label_1:
+    while (true) {
+      if (jj_2_1(2)) {
+        ;
+      } else {
+        break label_1;
       }
-      if (jj_2_6(2)) {
-        jj_consume_token(SELF_CLOSE);
+      attribute();
+    }
+    if (jj_2_2(2)) {
+      jj_consume_token(SELF_CLOSE);
 tagStack.pop();
             endObject();
-      } else if (jj_2_7(2)) {
-        jj_consume_token(CLOSE_TAG);
-        content();
-        jj_consume_token(END_TAG);
-        t = jj_consume_token(NAME);
+    } else if (jj_2_3(2)) {
+      jj_consume_token(CLOSE_TAG);
+      content();
+      jj_consume_token(END_TAG);
+      t = jj_consume_token(NAME);
 if (!elementName.equals(t.image)) {
                 {if (true) throw new ParseException("Mismatched tags: opening tag was " +
                     elementName + " but closing tag is " + t.image);}
             }
             tagStack.pop();
             endObject();
-        jj_consume_token(CLOSE_TAG);
+      jj_consume_token(CLOSE_TAG);
+    } else {
+      jj_consume_token(-1);
+      throw new ParseException();
+    }
+}
+
+  final public void attribute() throws ParseException {Token nameToken;
+    Token valueToken;
+    nameToken = jj_consume_token(NAME);
+    jj_consume_token(EQUALS);
+    valueToken = jj_consume_token(ATTRIBUTE_VALUE);
+String value = valueToken.image.substring(1, valueToken.image.length() - 1);
+        addAttribute(nameToken.image, value);
+}
+
+  final public void content() throws ParseException {Token t;
+    label_2:
+    while (true) {
+      if (jj_2_4(2)) {
+        ;
+      } else {
+        break label_2;
+      }
+      if (jj_2_5(2)) {
+        element();
+      } else if (jj_2_6(2)) {
+        t = jj_consume_token(TEXT);
+String text = t.image.trim();
+            if (!text.isEmpty()) {
+                addText(text);
+            }
       } else {
         jj_consume_token(-1);
         throw new ParseException();
       }
-    } finally {
-      trace_return("element");
-    }
-}
-
-  final public void attribute() throws ParseException {
-    trace_call("attribute");
-    try {
-Token nameToken;
-    Token valueToken;
-      nameToken = jj_consume_token(NAME);
-      jj_consume_token(EQUALS);
-      valueToken = jj_consume_token(ATTRIBUTE_VALUE);
-String value = valueToken.image.substring(1, valueToken.image.length() - 1);
-        addAttribute(nameToken.image, value);
-    } finally {
-      trace_return("attribute");
     }
 }
 
@@ -260,37 +192,45 @@ String value = valueToken.image.substring(1, valueToken.image.length() - 1);
     finally { jj_save(5, xla); }
   }
 
-  private boolean jj_2_7(int xla)
+  private boolean jj_3R_content_174_5_4()
  {
-    jj_la = xla; jj_lastpos = jj_scanpos = token;
-    try { return (!jj_3_7()); }
-    catch(LookaheadSuccess ls) { return true; }
-    finally { jj_save(6, xla); }
+    Token xsp;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_3_4()) { jj_scanpos = xsp; break; }
+    }
+    return false;
   }
 
-  private boolean jj_3_7()
+  private boolean jj_3R_element_126_5_5()
+ {
+    if (jj_scan_token(OPEN_TAG)) return true;
+    if (jj_scan_token(NAME)) return true;
+    return false;
+  }
+
+  private boolean jj_3_3()
  {
     if (jj_scan_token(CLOSE_TAG)) return true;
-    if (jj_3R_content_161_5_5()) return true;
+    if (jj_3R_content_174_5_4()) return true;
     if (jj_scan_token(END_TAG)) return true;
     return false;
   }
 
-  private boolean jj_3_6()
+  private boolean jj_3_2()
  {
     if (jj_scan_token(SELF_CLOSE)) return true;
     return false;
   }
 
-  private boolean jj_3R_attribute_215_5_4()
+  private boolean jj_3R_attribute_161_5_3()
  {
-    if (!jj_rescan) trace_call("attribute(LOOKING AHEAD...)");
-    if (jj_scan_token(NAME)) { if (!jj_rescan) trace_return("attribute(LOOKAHEAD FAILED)"); return true; }
-    if (jj_scan_token(EQUALS)) { if (!jj_rescan) trace_return("attribute(LOOKAHEAD FAILED)"); return true; }
-    { if (!jj_rescan) trace_return("attribute(LOOKAHEAD SUCCEEDED)"); return false; }
+    if (jj_scan_token(NAME)) return true;
+    if (jj_scan_token(EQUALS)) return true;
+    return false;
   }
 
-  private boolean jj_3_4()
+  private boolean jj_3_6()
  {
     if (jj_scan_token(TEXT)) return true;
     return false;
@@ -298,50 +238,25 @@ String value = valueToken.image.substring(1, valueToken.image.length() - 1);
 
   private boolean jj_3_1()
  {
-    if (jj_scan_token(6)) return true;
+    if (jj_3R_attribute_161_5_3()) return true;
     return false;
   }
 
-  private boolean jj_3_2()
+  private boolean jj_3_4()
  {
     Token xsp;
     xsp = jj_scanpos;
-    if (jj_3_3()) {
+    if (jj_3_5()) {
     jj_scanpos = xsp;
-    if (jj_3_4()) return true;
+    if (jj_3_6()) return true;
     }
-    return false;
-  }
-
-  private boolean jj_3_3()
- {
-    if (jj_3R_element_180_5_3()) return true;
     return false;
   }
 
   private boolean jj_3_5()
  {
-    if (jj_3R_attribute_215_5_4()) return true;
+    if (jj_3R_element_126_5_5()) return true;
     return false;
-  }
-
-  private boolean jj_3R_content_161_5_5()
- {
-    if (!jj_rescan) trace_call("content(LOOKING AHEAD...)");
-    Token xsp;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_3_2()) { jj_scanpos = xsp; break; }
-    }
-    { if (!jj_rescan) trace_return("content(LOOKAHEAD SUCCEEDED)"); return false; }
-  }
-
-  private boolean jj_3R_element_180_5_3()
- {
-    if (!jj_rescan) trace_call("element(LOOKING AHEAD...)");
-    if (jj_scan_token(OPEN_TAG)) { if (!jj_rescan) trace_return("element(LOOKAHEAD FAILED)"); return true; }
-    if (jj_scan_token(NAME)) { if (!jj_rescan) trace_return("element(LOOKAHEAD FAILED)"); return true; }
-    { if (!jj_rescan) trace_return("element(LOOKAHEAD SUCCEEDED)"); return false; }
   }
 
   /** Generated Token Manager. */
@@ -363,13 +278,10 @@ String value = valueToken.image.substring(1, valueToken.image.length() - 1);
 	private static void jj_la1_init_0() {
 	   jj_la1_0 = new int[] {};
 	}
-  final private JJCalls[] jj_2_rtns = new JJCalls[7];
+  final private JJCalls[] jj_2_rtns = new JJCalls[6];
   private boolean jj_rescan = false;
   private int jj_gc = 0;
 
-  {
-      enable_tracing();
-  }
   /** Constructor with InputStream. */
   public XMLParser(java.io.InputStream stream) {
 	  this(stream, null);
@@ -462,7 +374,6 @@ String value = valueToken.image.substring(1, valueToken.image.length() - 1);
 		   }
 		 }
 	   }
-	   trace_token(token, "");
 	   return token;
 	 }
 	 token = oldToken;
@@ -493,8 +404,6 @@ String value = valueToken.image.substring(1, valueToken.image.length() - 1);
 	   int i = 0; Token tok = token;
 	   while (tok != null && tok != jj_scanpos) { i++; tok = tok.next; }
 	   if (tok != null) jj_add_error_token(kind, i);
-	 } else {
-	   trace_scan(jj_scanpos, kind);
 	 }
 	 if (jj_scanpos.kind != kind) return true;
 	 if (jj_la == 0 && jj_scanpos == jj_lastpos) throw jj_ls;
@@ -508,7 +417,6 @@ String value = valueToken.image.substring(1, valueToken.image.length() - 1);
 	 else token = token.next = token_source.getNextToken();
 	 jj_ntk = -1;
 	 jj_gen++;
-	   trace_token(token, " (in getNextToken)");
 	 return token;
   }
 
@@ -576,7 +484,7 @@ String value = valueToken.image.substring(1, valueToken.image.length() - 1);
   /** Generate ParseException. */
   public ParseException generateParseException() {
 	 jj_expentries.clear();
-	 boolean[] la1tokens = new boolean[15];
+	 boolean[] la1tokens = new boolean[14];
 	 if (jj_kind >= 0) {
 	   la1tokens[jj_kind] = true;
 	   jj_kind = -1;
@@ -590,7 +498,7 @@ String value = valueToken.image.substring(1, valueToken.image.length() - 1);
 		 }
 	   }
 	 }
-	 for (int i = 0; i < 15; i++) {
+	 for (int i = 0; i < 14; i++) {
 	   if (la1tokens[i]) {
 		 jj_expentry = new int[1];
 		 jj_expentry[0] = i;
@@ -614,58 +522,17 @@ String value = valueToken.image.substring(1, valueToken.image.length() - 1);
 	 return trace_enabled;
   }
 
-  private int trace_indent = 0;
-/** Enable tracing. */
+  /** Enable tracing. */
   final public void enable_tracing() {
-	 trace_enabled = true;
   }
 
-/** Disable tracing. */
+  /** Disable tracing. */
   final public void disable_tracing() {
-	 trace_enabled = false;
-  }
-
-  protected void trace_call(String s) {
-	 if (trace_enabled) {
-	   for (int i = 0; i < trace_indent; i++) { System.out.print(" "); }
-	   System.out.println("Call:	" + s);
-	 }
-	 trace_indent = trace_indent + 2;
-  }
-
-  protected void trace_return(String s) {
-	 trace_indent = trace_indent - 2;
-	 if (trace_enabled) {
-	   for (int i = 0; i < trace_indent; i++) { System.out.print(" "); }
-	   System.out.println("Return: " + s);
-	 }
-  }
-
-  protected void trace_token(Token t, String where) {
-	 if (trace_enabled) {
-	   for (int i = 0; i < trace_indent; i++) { System.out.print(" "); }
-	   System.out.print("Consumed token: <" + tokenImage[t.kind]);
-	   if (t.kind != 0 && !tokenImage[t.kind].equals("\"" + t.image + "\"")) {
-		 System.out.print(": \"" + TokenMgrError.addEscapes(t.image) + "\"");
-	   }
-	   System.out.println(" at line " + t.beginLine + " column " + t.beginColumn + ">" + where);
-	 }
-  }
-
-  protected void trace_scan(Token t1, int t2) {
-	 if (trace_enabled) {
-	   for (int i = 0; i < trace_indent; i++) { System.out.print(" "); }
-	   System.out.print("Visited token: <" + tokenImage[t1.kind]);
-	   if (t1.kind != 0 && !tokenImage[t1.kind].equals("\"" + t1.image + "\"")) {
-		 System.out.print(": \"" + TokenMgrError.addEscapes(t1.image) + "\"");
-	   }
-	   System.out.println(" at line " + t1.beginLine + " column " + t1.beginColumn + ">; Expected token: <" + tokenImage[t2] + ">");
-	 }
   }
 
   private void jj_rescan_token() {
 	 jj_rescan = true;
-	 for (int i = 0; i < 7; i++) {
+	 for (int i = 0; i < 6; i++) {
 	   try {
 		 JJCalls p = jj_2_rtns[i];
 
@@ -679,7 +546,6 @@ String value = valueToken.image.substring(1, valueToken.image.length() - 1);
 			   case 3: jj_3_4(); break;
 			   case 4: jj_3_5(); break;
 			   case 5: jj_3_6(); break;
-			   case 6: jj_3_7(); break;
 			 }
 		   }
 		   p = p.next;

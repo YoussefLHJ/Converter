@@ -3,9 +3,9 @@ options {
     LOOKAHEAD = 2;
     CHOICE_AMBIGUITY_CHECK = 2;
     OTHER_AMBIGUITY_CHECK = 1;
-    DEBUG_PARSER = true;  // Activer le débogage du parseur
-    DEBUG_LOOKAHEAD = true;  // Activer le débogage du lookahead
-    DEBUG_TOKEN_MANAGER = true;  // Activer le débogage du gestionnaire de tokens
+    DEBUG_PARSER = false;
+    DEBUG_LOOKAHEAD = false;
+    DEBUG_TOKEN_MANAGER = false;
     ERROR_REPORTING = true;
     JAVA_UNICODE_ESCAPE = false;
     UNICODE_INPUT = false;
@@ -14,7 +14,7 @@ options {
     USER_CHAR_STREAM = false;
     BUILD_PARSER = true;
     BUILD_TOKEN_MANAGER = true;
-    FORCE_LA_CHECK = true;
+    FORCE_LA_CHECK = false;
 }
 
 PARSER_BEGIN(XMLParser)
@@ -28,7 +28,6 @@ public class XMLParser {
     private int indentLevel = 0;
     private Stack<String> tagStack = new Stack<>();
     private boolean isFirstElement = true;
-    private boolean hasContent = false;
 
     public String getJsonOutput() {
         return jsonOutput.toString();
@@ -45,10 +44,9 @@ public class XMLParser {
             jsonOutput.append(",\n");
         }
         addIndent();
-        jsonOutput.append("\"").append(escapeJson(name)).append("\": {");
+        jsonOutput.append("\"").append(name).append("\": {");
         indentLevel++;
         isFirstElement = true;
-        hasContent = false;
     }
 
     private void endObject() {
@@ -60,47 +58,21 @@ public class XMLParser {
     }
 
     private void addAttribute(String name, String value) {
-    if (!isFirstElement) {
-        jsonOutput.append(",\n");
-    }
-    addIndent();
-    jsonOutput.append("\"").append(escapeJson(name)).append("\": ")
-            .append("\"").append(escapeJson(value)).append("\"");
-    isFirstElement = false;
-}
-    
-    private void addSimpleElement(String name, String text) {
         if (!isFirstElement) {
             jsonOutput.append(",\n");
         }
         addIndent();
-        jsonOutput.append("\"").append(escapeJson(name)).append("\": \"")
-                .append(escapeJson(text)).append("\"");
+        jsonOutput.append("\"").append(name).append("\": \"").append(value).append("\"");
         isFirstElement = false;
     }
 
     private void addText(String text) {
-        String trimmedText = text.trim();
-        if (trimmedText.isEmpty()) {
-            return;
-        }
         if (!isFirstElement) {
             jsonOutput.append(",\n");
         }
         addIndent();
-        jsonOutput.append("\"#text\": \"").append(escapeJson(trimmedText)).append("\"");
+        jsonOutput.append("\"").append(text).append("\"");
         isFirstElement = false;
-        hasContent = true;
-    }
-
-    private String escapeJson(String input) {
-        return input.replace("\\", "\\\\")
-                   .replace("\"", "\\\"")
-                   .replace("\b", "\\b")
-                   .replace("\f", "\\f")
-                   .replace("\n", "\\n")
-                   .replace("\r", "\\r")
-                   .replace("\t", "\\t");
     }
 
     public static XMLParser createParser(String xmlContent) {
@@ -118,19 +90,18 @@ SKIP : {
     | "\t"
     | "\n"
     | "\r"
-    | < XML_COMMENT: "<!--" (~["-"])* "-->" >  
+    | < XML_COMMENT: "<!--" (~["-"])* "-->" >
 }
 
 TOKEN : {
-    < XML_DECLARATION: "<?xml" (~["?"])* "?>" > 
-    | < OPEN_TAG: "<" >
-    | < CLOSE_TAG: ">" >
-    | < END_TAG: "</" >
-    | < SELF_CLOSE: "/>" >
-    | < EQUALS: "=" >
-    | < NAME: (["a"-"z", "A"-"Z", "_", ":"])(["a"-"z", "A"-"Z", "0"-"9", "_", "-", ":", "."])* >
-    | < ATTRIBUTE_VALUE: "\"" (~["\""])* "\"" >
-    | < TEXT: (~["<", ">", "\n", "\r"])+ >  // Modification de la définition du TEXT token
+    < OPEN_TAG: "<" > |
+    < CLOSE_TAG: ">" > |
+    < END_TAG: "</" > |
+    < SELF_CLOSE: "/>" > |
+    < EQUALS: "=" > |
+    < NAME: (["a"-"z", "A"-"Z", "_", ":"])(["a"-"z", "A"-"Z", "0"-"9", "_", "-", ":", "."])* > |
+    < ATTRIBUTE_VALUE: "\"" (~["\""])* "\"" > |
+    < TEXT: (~["<", ">"])+ >
 }
 
 void document() : {
@@ -140,7 +111,6 @@ void document() : {
     jsonOutput.append("{\n");
 }
 {
-    [declaration()]
     element()
     <EOF>
     {
@@ -148,30 +118,6 @@ void document() : {
     }
 }
 
-void declaration() : {}
-{
-    <XML_DECLARATION>
-}
-
-
-void content() : {
-    Token t;
-}
-{
-    (
-        LOOKAHEAD(2)
-        element()
-        |
-        t = <TEXT> {
-            String text = t.image.trim();
-            if (!text.isEmpty()) {
-                addText(text);
-            }
-        }
-    )*  // Ajout de l'étoile ici pour permettre 0 ou plusieurs occurrences
-}
-
-// Modification de la règle element() pour mieux gérer la structure
 void element() : {
     Token t;
     String elementName;
@@ -193,7 +139,7 @@ void element() : {
         }
         |
         <CLOSE_TAG>
-        content()  // Suppression du LOOKAHEAD et du + ici
+        content()
         <END_TAG>
         t = <NAME> {
             if (!elementName.equals(t.image)) {
@@ -221,3 +167,18 @@ void attribute() : {
     }
 }
 
+void content() : {
+    Token t;
+}
+{
+    (
+        element()
+        |
+        t = <TEXT> {
+            String text = t.image.trim();
+            if (!text.isEmpty()) {
+                addText(text);
+            }
+        }
+    )*
+}
