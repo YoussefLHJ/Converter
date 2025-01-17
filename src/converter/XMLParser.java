@@ -22,37 +22,42 @@ public class XMLParser implements XMLParserConstants {
     }
 
     private void startObject(String name) {
-    if (!isFirstElement) {
-        jsonOutput.append(",\n");
+        if (!isFirstElement) {
+            jsonOutput.append(",\n");
+        }
+        addIndent();
+        jsonOutput.append("\"").append(name).append("\": {\n");
+        indentLevel++;
+        isFirstElement = true;
     }
-    addIndent();
-    jsonOutput.append("\"").append(name).append("\": ");
-    isFirstElement = true;
-}
 
     private void endObject() {
-    isFirstElement = false;
-}
+        indentLevel--;
+        addIndent();
+        jsonOutput.append("\n");
+        addIndent();
+        jsonOutput.append("}");
+        isFirstElement = false;
+    }
 
     private void addAttribute(String name, String value) {
-    if (!isFirstElement) {
-        jsonOutput.append(",\n");
-    }
-    addIndent();
-    // Tous les attributs commencent par @, donc on les ajoute directement
-    jsonOutput.append("\"").append(name).append("\": \"").append(value).append("\"");
-    isFirstElement = false;
+        if (!isFirstElement) {
+            jsonOutput.append(",\n");
         }
+        addIndent();
+        jsonOutput.append("\"").append(name).append("\": \"").append(value).append("\"");
+        isFirstElement = false;
+    }
 
     private void addText(String text) {
-    if (!isFirstElement) {
-        jsonOutput.append(",\n");
+        if (!isFirstElement) {
+            jsonOutput.append(",\n");
+        }
+        addIndent();
+        // Directly assign the text value to the current key
+        jsonOutput.append("\"").append(text).append("\"");
+        isFirstElement = false;
     }
-    addIndent();
-    // Ajouter directement la valeur textuelle sans la clé "#text"
-    jsonOutput.append("\"").append(text).append("\"");
-    isFirstElement = false;
-}
 
     public static XMLParser createParser(String xmlContent) {
         return new XMLParser(new StringReader(xmlContent));
@@ -215,15 +220,56 @@ String text = t.image.trim();
     finally { jj_save(5, xla); }
   }
 
-  private boolean jj_3_1()
+  private boolean jj_3R_content_178_5_4()
  {
-    if (jj_3R_attribute_158_5_3()) return true;
+    if (!jj_rescan) trace_call("content(LOOKING AHEAD...)");
+    Token xsp;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_3_4()) { jj_scanpos = xsp; break; }
+    }
+    { if (!jj_rescan) trace_return("content(LOOKAHEAD SUCCEEDED)"); return false; }
+  }
+
+  private boolean jj_3R_element_129_5_5()
+ {
+    if (!jj_rescan) trace_call("element(LOOKING AHEAD...)");
+    if (jj_scan_token(OPEN_TAG)) { if (!jj_rescan) trace_return("element(LOOKAHEAD FAILED)"); return true; }
+    if (jj_scan_token(NAME)) { if (!jj_rescan) trace_return("element(LOOKAHEAD FAILED)"); return true; }
+    { if (!jj_rescan) trace_return("element(LOOKAHEAD SUCCEEDED)"); return false; }
+  }
+
+  private boolean jj_3_3()
+ {
+    if (jj_scan_token(CLOSE_TAG)) return true;
+    if (jj_3R_content_178_5_4()) return true;
+    if (jj_scan_token(END_TAG)) return true;
     return false;
+  }
+
+  private boolean jj_3_2()
+ {
+    if (jj_scan_token(SELF_CLOSE)) return true;
+    return false;
+  }
+
+  private boolean jj_3R_attribute_165_5_3()
+ {
+    if (!jj_rescan) trace_call("attribute(LOOKING AHEAD...)");
+    if (jj_scan_token(AT_NAME)) { if (!jj_rescan) trace_return("attribute(LOOKAHEAD FAILED)"); return true; }
+    if (jj_scan_token(EQUALS)) { if (!jj_rescan) trace_return("attribute(LOOKAHEAD FAILED)"); return true; }
+    { if (!jj_rescan) trace_return("attribute(LOOKAHEAD SUCCEEDED)"); return false; }
   }
 
   private boolean jj_3_6()
  {
     if (jj_scan_token(TEXT)) return true;
+    return false;
+  }
+
+  private boolean jj_3_1()
+ {
+    if (jj_3R_attribute_165_5_3()) return true;
     return false;
   }
 
@@ -240,49 +286,8 @@ String text = t.image.trim();
 
   private boolean jj_3_5()
  {
-    if (jj_3R_element_123_5_5()) return true;
+    if (jj_3R_element_129_5_5()) return true;
     return false;
-  }
-
-  private boolean jj_3R_content_171_5_4()
- {
-    if (!jj_rescan) trace_call("content(LOOKING AHEAD...)");
-    Token xsp;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_3_4()) { jj_scanpos = xsp; break; }
-    }
-    { if (!jj_rescan) trace_return("content(LOOKAHEAD SUCCEEDED)"); return false; }
-  }
-
-  private boolean jj_3R_element_123_5_5()
- {
-    if (!jj_rescan) trace_call("element(LOOKING AHEAD...)");
-    if (jj_scan_token(OPEN_TAG)) { if (!jj_rescan) trace_return("element(LOOKAHEAD FAILED)"); return true; }
-    if (jj_scan_token(NAME)) { if (!jj_rescan) trace_return("element(LOOKAHEAD FAILED)"); return true; }
-    { if (!jj_rescan) trace_return("element(LOOKAHEAD SUCCEEDED)"); return false; }
-  }
-
-  private boolean jj_3_3()
- {
-    if (jj_scan_token(CLOSE_TAG)) return true;
-    if (jj_3R_content_171_5_4()) return true;
-    if (jj_scan_token(END_TAG)) return true;
-    return false;
-  }
-
-  private boolean jj_3_2()
- {
-    if (jj_scan_token(SELF_CLOSE)) return true;
-    return false;
-  }
-
-  private boolean jj_3R_attribute_158_5_3()
- {
-    if (!jj_rescan) trace_call("attribute(LOOKING AHEAD...)");
-    if (jj_scan_token(AT_NAME)) { if (!jj_rescan) trace_return("attribute(LOOKAHEAD FAILED)"); return true; }
-    if (jj_scan_token(EQUALS)) { if (!jj_rescan) trace_return("attribute(LOOKAHEAD FAILED)"); return true; }
-    { if (!jj_rescan) trace_return("attribute(LOOKAHEAD SUCCEEDED)"); return false; }
   }
 
   /** Generated Token Manager. */

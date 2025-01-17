@@ -40,37 +40,42 @@ public class XMLParser {
     }
 
     private void startObject(String name) {
-    if (!isFirstElement) {
-        jsonOutput.append(",\n");
+        if (!isFirstElement) {
+            jsonOutput.append(",\n");
+        }
+        addIndent();
+        jsonOutput.append("\"").append(name).append("\": {\n");
+        indentLevel++;
+        isFirstElement = true;
     }
-    addIndent();
-    jsonOutput.append("\"").append(name).append("\": ");
-    isFirstElement = true;
-}
 
     private void endObject() {
-    isFirstElement = false;
-}
+        indentLevel--;
+        addIndent();
+        jsonOutput.append("\n");
+        addIndent();
+        jsonOutput.append("}");
+        isFirstElement = false;
+    }
 
     private void addAttribute(String name, String value) {
-    if (!isFirstElement) {
-        jsonOutput.append(",\n");
+        if (!isFirstElement) {
+            jsonOutput.append(",\n");
+        }
+        addIndent();
+        jsonOutput.append("\"").append(name).append("\": \"").append(value).append("\"");
+        isFirstElement = false;
     }
-    addIndent();
-    // Tous les attributs commencent par @, donc on les ajoute directement
-    jsonOutput.append("\"").append(name).append("\": \"").append(value).append("\"");
-    isFirstElement = false;
-	}
 
     private void addText(String text) {
-    if (!isFirstElement) {
-        jsonOutput.append(",\n");
+        if (!isFirstElement) {
+            jsonOutput.append(",\n");
+        }
+        addIndent();
+        // Directly assign the text value to the current key
+        jsonOutput.append("\"").append(text).append("\"");
+        isFirstElement = false;
     }
-    addIndent();
-    // Ajouter directement la valeur textuelle sans la clé "#text"
-    jsonOutput.append("\"").append(text).append("\"");
-    isFirstElement = false;
-}
 
     public static XMLParser createParser(String xmlContent) {
         return new XMLParser(new StringReader(xmlContent));
@@ -81,6 +86,7 @@ public class XMLParser {
     }
 }
 PARSER_END(XMLParser)
+
 SKIP : {
     " "
     | "\t"
@@ -150,6 +156,7 @@ void element() : {
         <CLOSE_TAG>
     )
 }
+
 void attribute() : {
     Token nameToken;
     Token valueToken;
