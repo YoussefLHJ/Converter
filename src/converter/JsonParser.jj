@@ -1,0 +1,178 @@
+/**
+ * JavaCC grammar for JSON to XML converter
+ */
+options {
+    STATIC = false;
+    LOOKAHEAD = 2;
+    CHOICE_AMBIGUITY_CHECK = 2;
+    OTHER_AMBIGUITY_CHECK = 1;
+    DEBUG_PARSER = false;
+    DEBUG_LOOKAHEAD = false;
+    DEBUG_TOKEN_MANAGER = false;
+    ERROR_REPORTING = true;
+    JAVA_UNICODE_ESCAPE = false;
+    UNICODE_INPUT = false;
+    IGNORE_CASE = false;
+    USER_TOKEN_MANAGER = false;
+    USER_CHAR_STREAM = false;
+    BUILD_PARSER = true;
+    BUILD_TOKEN_MANAGER = true;
+    FORCE_LA_CHECK = true;
+}
+
+PARSER_BEGIN(JsonParser)
+package converter;
+
+import java.io.*;
+
+public class JsonParser {
+    private StringBuilder xmlOutput = new StringBuilder();
+    private int indentLevel = 0;
+
+    public String getXmlOutput() {
+        return xmlOutput.toString();
+    }
+
+    private void addIndent() {
+        for (int i = 0; i < indentLevel; i++) {
+            xmlOutput.append("  "); // Using 2 spaces for clearer indentation
+        }
+    }
+
+    private void startElement(String name) {
+        addIndent();
+        xmlOutput.append("<").append(name).append(">\n");
+        indentLevel++;
+    }
+
+    private void endElement(String name) {
+        indentLevel--;
+        addIndent();
+        xmlOutput.append("</").append(name).append(">\n");
+    }
+
+    private void addText(String text) {
+        addIndent();
+        // Escape special XML characters
+        text = text.replace("&", "&amp;")
+                  .replace("<", "&lt;")
+                  .replace(">", "&gt;")
+                  .replace("\"", "&quot;")
+                  .replace("'", "&apos;");
+        xmlOutput.append(text).append("\n");
+    }
+
+    public static JsonParser createParser(String jsonContent) {
+        return new JsonParser(new StringReader(jsonContent));
+    }
+
+    public static JsonParser createParser(File jsonFile) throws FileNotFoundException {
+        return new JsonParser(new FileReader(jsonFile));
+    }
+}
+PARSER_END(JsonParser)
+
+SKIP : {
+    " "
+    | "\t"
+    | "\n"
+    | "\r"
+}
+
+TOKEN : {
+    < OPEN_BRACE: "{" >
+    | < CLOSE_BRACE: "}" >
+    | < OPEN_BRACKET: "[" >
+    | < CLOSE_BRACKET: "]" >
+    | < COLON: ":" >
+    | < COMMA: "," >
+    | < STRING: "\"" (~["\"", "\\"] | "\\" ~[])* "\"" >
+    | < NUMBER: (["-"])? (["0"-"9"])+ ("." (["0"-"9"])+)? (["e","E"] (["+","-"])? (["0"-"9"])+)? >
+    | < TRUE: "true" >
+    | < FALSE: "false" >
+    | < NULL: "null" >
+}
+
+void document() : {
+    xmlOutput.setLength(0);
+    indentLevel = 0;
+}
+{
+    (object() | array()) <EOF>
+}
+
+void object() : {
+    Token t;
+}
+{
+    <OPEN_BRACE>
+    (
+        pair() (LOOKAHEAD(2) <COMMA> pair())*
+    )?
+    <CLOSE_BRACE>
+}
+
+void pair() : {
+    Token t;
+    String key;
+}
+{
+    t = <STRING> {
+        key = t.image.substring(1, t.image.length() - 1);
+    }
+    <COLON>
+    value(key)
+}
+
+void value(String key) : {
+    Token t;
+}
+{
+    (
+        t = <STRING> {
+            startElement(key);
+            addText(t.image.substring(1, t.image.length() - 1));
+            endElement(key);
+        }
+        | t = <NUMBER> {
+            startElement(key);
+            addText(t.image);
+            endElement(key);
+        }
+        | t = <TRUE> {
+            startElement(key);
+            addText("true");
+            endElement(key);
+        }
+        | t = <FALSE> {
+            startElement(key);
+            addText("false");
+            endElement(key);
+        }
+        | t = <NULL> {
+            startElement(key);
+            addText("null");
+            endElement(key);
+        }
+        | {
+            startElement(key);
+        } object() {
+            endElement(key);
+        }
+        | {
+            startElement(key);
+        } array() {
+            endElement(key);
+        }
+    )
+}
+
+void array() : {
+}
+{
+    <OPEN_BRACKET>
+    (
+        value("item") (LOOKAHEAD(2) <COMMA> value("item"))*
+    )?
+    <CLOSE_BRACKET>
+}

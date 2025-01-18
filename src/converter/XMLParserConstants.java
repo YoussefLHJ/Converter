@@ -11,17 +11,25 @@ public interface XMLParserConstants {
   /** End of File. */
   int EOF = 0;
   /** RegularExpression Id. */
-  int OPEN_TAG = 5;
+  int XML_COMMENT = 5;
   /** RegularExpression Id. */
-  int CLOSE_TAG = 6;
+  int OPEN_TAG = 6;
   /** RegularExpression Id. */
-  int END_TAG = 7;
+  int CLOSE_TAG = 7;
   /** RegularExpression Id. */
-  int SELF_CLOSE = 8;
+  int END_TAG = 8;
   /** RegularExpression Id. */
-  int NAME = 9;
+  int SELF_CLOSE = 9;
   /** RegularExpression Id. */
-  int CONTENT = 10;
+  int EQUALS = 10;
+  /** RegularExpression Id. */
+  int NAME = 11;
+  /** RegularExpression Id. */
+  int AT_NAME = 12;
+  /** RegularExpression Id. */
+  int ATTRIBUTE_VALUE = 13;
+  /** RegularExpression Id. */
+  int TEXT = 14;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -33,12 +41,16 @@ public interface XMLParserConstants {
     "\"\\t\"",
     "\"\\n\"",
     "\"\\r\"",
+    "<XML_COMMENT>",
     "\"<\"",
     "\">\"",
     "\"</\"",
     "\"/>\"",
+    "\"=\"",
     "<NAME>",
-    "<CONTENT>",
+    "<AT_NAME>",
+    "<ATTRIBUTE_VALUE>",
+    "<TEXT>",
   };
 
 }

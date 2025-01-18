@@ -1,20 +1,20 @@
 options {
-  STATIC = false;
-  LOOKAHEAD = 2;
-  CHOICE_AMBIGUITY_CHECK = 2;
-  OTHER_AMBIGUITY_CHECK = 1;
-  DEBUG_PARSER = false;
-  DEBUG_LOOKAHEAD = false;
-  DEBUG_TOKEN_MANAGER = false;
-  ERROR_REPORTING = true;
-  JAVA_UNICODE_ESCAPE = false;
-  UNICODE_INPUT = false;
-  IGNORE_CASE = false;
-  USER_TOKEN_MANAGER = false;
-  USER_CHAR_STREAM = false;
-  BUILD_PARSER = true;
-  BUILD_TOKEN_MANAGER = true;
-  FORCE_LA_CHECK = false;
+    STATIC = false;
+    LOOKAHEAD = 2;
+    CHOICE_AMBIGUITY_CHECK = 2;
+    OTHER_AMBIGUITY_CHECK = 1;
+    DEBUG_PARSER = true;
+    DEBUG_LOOKAHEAD = true;
+    DEBUG_TOKEN_MANAGER = true;
+    ERROR_REPORTING = true;
+    JAVA_UNICODE_ESCAPE = false;
+    UNICODE_INPUT = false;
+    IGNORE_CASE = false;
+    USER_TOKEN_MANAGER = false;
+    USER_CHAR_STREAM = false;
+    BUILD_PARSER = true;
+    BUILD_TOKEN_MANAGER = true;
+    FORCE_LA_CHECK = false;
 }
 
 PARSER_BEGIN(XMLParser)
@@ -28,7 +28,7 @@ public class XMLParser {
     private int indentLevel = 0;
     private Stack<String> tagStack = new Stack<>();
     private boolean isFirstElement = true;
-    
+
     public String getJsonOutput() {
         return jsonOutput.toString();
     }
@@ -44,16 +44,36 @@ public class XMLParser {
             jsonOutput.append(",\n");
         }
         addIndent();
-        jsonOutput.append("\"").append(name).append("\": {");
+        jsonOutput.append("\"").append(name).append("\": {\n");
         indentLevel++;
         isFirstElement = true;
     }
 
     private void endObject() {
         indentLevel--;
+        addIndent();
         jsonOutput.append("\n");
         addIndent();
         jsonOutput.append("}");
+        isFirstElement = false;
+    }
+
+    private void addAttribute(String name, String value) {
+        if (!isFirstElement) {
+            jsonOutput.append(",\n");
+        }
+        addIndent();
+        jsonOutput.append("\"").append(name).append("\": \"").append(value).append("\"");
+        isFirstElement = false;
+    }
+
+    private void addText(String text) {
+        if (!isFirstElement) {
+            jsonOutput.append(",\n");
+        }
+        addIndent();
+        // Directly assign the text value to the current key
+        jsonOutput.append("\"").append(text).append("\"");
         isFirstElement = false;
     }
 
@@ -65,7 +85,6 @@ public class XMLParser {
         return new XMLParser(new FileReader(xmlFile));
     }
 }
-
 PARSER_END(XMLParser)
 
 SKIP : {
@@ -73,6 +92,7 @@ SKIP : {
     | "\t"
     | "\n"
     | "\r"
+    | < XML_COMMENT: "<!--" (~["-"])* "-->" >
 }
 
 TOKEN : {
@@ -80,8 +100,11 @@ TOKEN : {
     < CLOSE_TAG: ">" > |
     < END_TAG: "</" > |
     < SELF_CLOSE: "/>" > |
-    < NAME: (["a"-"z", "A"-"Z", "_"])(["a"-"z", "A"-"Z", "0"-"9", "_", "-"])* > |
-    < CONTENT: (~["<", ">"])+ >
+    < EQUALS: "=" > |
+    < NAME: (["a"-"z", "A"-"Z", "_", ":"])(["a"-"z", "A"-"Z", "0"-"9", "_", "-", ":", "."])* > |
+    < AT_NAME: "@" (["a"-"z", "A"-"Z", "_", ":"])(["a"-"z", "A"-"Z", "0"-"9", "_", "-", ":", "."])* > |
+    < ATTRIBUTE_VALUE: "\"" (~["\""])* "\"" > |
+    < TEXT: (~["<", ">", "@", "=", "\""])+ > // Restreint pour ne pas capturer les attributs ou les noms
 }
 
 void document() : {
@@ -104,14 +127,23 @@ void element() : {
 }
 {
     <OPEN_TAG>
-    t = <NAME> {
+    t = <NAME> { // Nom de l'élément
         elementName = t.image;
         tagStack.push(elementName);
         startObject(elementName);
     }
-    <CLOSE_TAG>
+    
+    // Gestion des attributs (optionnels)
+    (attribute())*
+    
     (
-        content()
+        <SELF_CLOSE> { // Élément auto-fermant
+            tagStack.pop();
+            endObject();
+        }
+        |
+        <CLOSE_TAG>
+        content() // Gestion du contenu (texte ou éléments imbriqués)
         <END_TAG>
         t = <NAME> {
             if (!elementName.equals(t.image)) {
@@ -119,37 +151,38 @@ void element() : {
                     elementName + " but closing tag is " + t.image);
             }
             tagStack.pop();
+            endObject();
         }
         <CLOSE_TAG>
-    |
-        <SELF_CLOSE> {
-            tagStack.pop();
-        }
     )
+}
+
+void attribute() : {
+    Token nameToken;
+    Token valueToken;
+}
+{
+    nameToken = <AT_NAME> // Attribut commençant par @
+    <EQUALS>
+    valueToken = <ATTRIBUTE_VALUE>
     {
-        endObject();
+        String value = valueToken.image.substring(1, valueToken.image.length() - 1);
+        addAttribute(nameToken.image, value);
     }
 }
 
 void content() : {
     Token t;
-    boolean hasContent = false;
 }
 {
     (
-        t = <CONTENT> {
-            if (!hasContent) {
-                if (!isFirstElement) {
-                    jsonOutput.append(",");
-                }
-                jsonOutput.append("\n");
-                addIndent();
-                jsonOutput.append("\"content\": \"").append(t.image.trim()).append("\"");
-                isFirstElement = false;
-                hasContent = true;
+        element() 
+        |
+        t = <TEXT> { 
+            String text = t.image.trim();
+            if (!text.isEmpty()) {
+                addText(text);
             }
         }
-    |
-        element()
     )*
 }
